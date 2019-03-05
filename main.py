@@ -78,6 +78,7 @@ def main():
     # b=trainset[20000][0]
     # print(b.size())
     # print((a==b).sum())
+
     trainloader = DataLoader(trainset,batch_size=opt.batchsize,shuffle=True,num_workers=opt.numworker)
     simNN = model.simNN(opt.insize, opt.outsize)
     if opt.load_model_path:
