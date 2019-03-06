@@ -8,9 +8,12 @@ class DefaultConfig(object):
     numworker = 4
     lr = 0.001
     weight_decay = 0e-5
+    lr_decay = 0.5
     printinter = 20
     root = 'cifar-10-batches-py'
     # load_model_path = os.path.join('snapshot','simNN_0_0305_165425.pth')
+
+    # is u wanna test, modify the load_model_path and train below
     load_model_path = None
     train = True
     use_cuda = torch.cuda.is_available()

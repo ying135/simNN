@@ -2,3 +2,4 @@ __pycache__/*
 snapshot/*
 .idea/*
 cifar-10-batches-py/*
+*.png
