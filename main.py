@@ -3,6 +3,8 @@ from torch.utils.data import DataLoader
 import torchvision
 import datasetmaker
 import model
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from config import DefaultConfig
 import time
@@ -18,6 +20,15 @@ def save(model,epoch):
     torch.save(model.state_dict(),name)
 
 
+def plotlc(x, y, figname='learning_curve'):
+    plt.plot(x, y)
+    plt.title('learning curve')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    # plt.show()
+    plt.savefig(figname)
+
+
 def train(model, trainloader):
     if opt.use_cuda:
         model = model.cuda()
@@ -29,9 +40,8 @@ def train(model, trainloader):
     pLoss = []
 
     for epoch in range(opt.epoch):
-        avgloss=0
-        avgcount=0
-        avgaccuracy = 0
+        loss_all = 0
+        total_accuracy = 0
         for i, (input, target) in enumerate(trainloader):
             if opt.use_cuda:
                 input = input.cuda()
@@ -43,47 +53,39 @@ def train(model, trainloader):
             optimizer.step()
 
             pred = torch.max(score, 1)[1]
-            accuracy = (pred == target).sum()
+            accuracy = float((pred == target).sum())
             accuracy = accuracy * 100 / input.size(0)
             # print((pred == target).sum(dim=0,keepdim=False))
 
-            avgaccuracy = avgaccuracy + accuracy
-            avgloss = avgloss + loss.data
-            # if it's avgloss+=loss.data,
-            # then the plot part pLoss.append will go wrong, in which case pLoss will have several same number
-            avgcount += 1
+            total_accuracy += accuracy
+            loss_all += float(loss)
 
             if i % opt.printinter ==0:
-                print("Epoch: ", epoch, "|Iter:",i,"|Loss:",loss.data,"|Accuracy:",accuracy)
+                print("Epoch: ", epoch, "| Iter:", i, "| Loss:", float(loss), "| Accuracy:", accuracy, "%")
 
-        avgloss = avgloss / avgcount
-        avgaccuracy = avgaccuracy / avgcount
-        print("the end of Epoch: ", epoch, "|AVGLoss:", avgloss, "|Accuracy:", avgaccuracy)
-        save(model,epoch)
+        avgloss = loss_all / len(trainloader)
+        avgaccuracy = total_accuracy / len(trainloader)
+        print("the end of Epoch: ", epoch, "| AVGLoss:", avgloss, "| Accuracy:", avgaccuracy, "%")
+        save(model, epoch)
 
         # plot
         pEpoch.append(epoch)
         pLoss.append(avgloss)
-        plt.plot(pEpoch, pLoss)
-        plt.title('learning curve')
-        plt.xlabel('epoch')
-        plt.ylabel('loss')
-        # plt.show()
-        plt.savefig('learning_curve')
+        plotlc(pEpoch, pLoss)
 
         # val the model
         validset = datasetmaker.cifar10(opt.root, train=False, test=False)
         validloader = DataLoader(validset, batch_size=opt.batchsize, shuffle=False, num_workers=opt.numworker)
         valaccuracy = val(model, validloader)
-        print("validation of Epoch: ", epoch, "|Accuracy:", valaccuracy)
+        print("validation of Epoch: ", epoch, "| Accuracy:", valaccuracy, "%")
 
         # update lr
         if avgloss > previous_loss:
             lr = lr * opt.lr_decay
             for para in optimizer.param_groups:
                 para['lr'] = lr
+            print("learning rate changes to ",lr)
         previous_loss = avgloss
-
 
 
 def val(model, valloader):
@@ -96,11 +98,12 @@ def val(model, valloader):
             target = target.cuda()
         score = model(input)
         pred = torch.max(score, 1)[1]
-        accuracy += (pred == target).sum()
+        accuracy += float((pred == target).sum())
         avgcount += input.size(0)
     accuracy = accuracy * 100 / avgcount
     model.train()
     return accuracy
+
 
 # it's exactly the same as val function
 def test(model, testloader):
@@ -115,7 +118,7 @@ def test(model, testloader):
             target = target.cuda()
         score = model(input)
         pred = torch.max(score, 1)[1]
-        accuracy += (pred == target).sum()
+        accuracy += float((pred == target).sum())
         avgcount += input.size(0)
     accuracy = accuracy * 100 / avgcount
     # im not sure whether need model.train() or not
