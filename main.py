@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from config import DefaultConfig
 import time
 import os
+from torch.nn import init
 
 
 opt = DefaultConfig()
@@ -32,9 +33,19 @@ def plotlc(x, y, figname='learning_curve'):
 def train(model, trainloader):
     if opt.use_cuda:
         model = model.cuda()
+    model.train()
     criterion = torch.nn.CrossEntropyLoss()
     lr = opt.lr
-    optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=opt.weight_decay)
+    # optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=opt.weight_decay)
+    weight_p = []
+    bias_p = []
+    for name, para in model.named_parameters():
+        if 'bias' in name:
+            bias_p += [para]
+        else:
+            weight_p += [para]
+    optimizer = torch.optim.Adam([{'params': weight_p, 'weight_decay': opt.weight_decay},
+                                  {'params': bias_p, 'weight_decay': 0}], lr=lr)
     previous_loss = 1e10
     pEpoch = []
     pLoss = []
@@ -74,18 +85,18 @@ def train(model, trainloader):
         plotlc(pEpoch, pLoss)
 
         # val the model
-        validset = datasetmaker.cifar10(opt.root, train=False, test=False)
-        validloader = DataLoader(validset, batch_size=opt.batchsize, shuffle=False, num_workers=opt.numworker)
-        valaccuracy = val(model, validloader)
-        print("validation of Epoch: ", epoch, "| Accuracy:", valaccuracy, "%")
+        # validset = datasetmaker.cifar10(opt.root, train=False, test=False)
+        # validloader = DataLoader(validset, batch_size=opt.batchsize, shuffle=False, num_workers=opt.numworker)
+        # valaccuracy = val(model, validloader)
+        # print("validation of Epoch: ", epoch, "| Accuracy:", valaccuracy, "%")
 
         # update lr
-        if avgloss > previous_loss:
-            lr = lr * opt.lr_decay
-            for para in optimizer.param_groups:
-                para['lr'] = lr
-            print("learning rate changes to ",lr)
-        previous_loss = avgloss
+        # if avgloss > previous_loss:
+        #     lr = lr * opt.lr_decay
+        #     for para in optimizer.param_groups:
+        #         para['lr'] = lr
+        #     print("learning rate changes to ",lr)
+        # previous_loss = avgloss
 
 
 def val(model, valloader):
@@ -128,9 +139,13 @@ def test(model, testloader):
 
 def main():
     if opt.train:
-        trainset = datasetmaker.cifar10(opt.root)
+        # trainset = datasetmaker.cifar10(opt.root)
+        trainset = torchvision.datasets.CIFAR10(root='.', train=True, download=False,
+                                                transform=datasetmaker.transform())
     else:
-        trainset = datasetmaker.cifar10(opt.root, train=False, test=True)
+        # trainset = datasetmaker.cifar10(opt.root, train=False, test=True)
+        trainset = torchvision.datasets.CIFAR10(root='.', train=False, download=False,
+                                                transform=datasetmaker.transform())
 
     # a=trainset[20000][0]
     # print(a.size())
@@ -143,9 +158,18 @@ def main():
     trainloader = DataLoader(trainset, batch_size=opt.batchsize, shuffle=True, num_workers=opt.numworker)
 
     simNN = model.simNN(opt.insize, opt.outsize)
+    # initialize
+    # for name, params in simNN.named_parameters():
+    #     if name.find('linear') != -1:
+    #         if name.find('weight') != -1:
+    #             init.kaiming_normal(params)  # weight
+    #         # init.kaiming_normal(params[0])  # weight
+    #         # init.xavier_normal(params[1])  # bias
+
+
     if opt.load_model_path:
         simNN.load_state_dict(torch.load(opt.load_model_path))
-        print("Load Success!",opt.load_model_path)
+        print("Load Success!", opt.load_model_path)
     if opt.train:
         train(simNN, trainloader)
     else:

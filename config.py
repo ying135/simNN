@@ -3,11 +3,12 @@ import os
 class DefaultConfig(object):
     insize = 3 * 32 * 32
     outsize = 10
-    epoch = 100
-    batchsize = 64
-    numworker = 4
+    epoch = 600
+    batchsize = 256
+    numworker = 0
     lr = 0.001
-    weight_decay = 0e-5
+    # weight_decay = 0e-5
+    weight_decay = 1e-5
     lr_decay = 0.5
     printinter = 20
     root = 'cifar-10-batches-py'
